@@ -106,13 +106,22 @@ def multi_mahalanobis(x, y, Sm):
 
 class multiEKF(object):
         
-    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres):
+    '''
+    start_values [[p, x, y, a, v, w]] - initial positions of all ants
+    R_diag - [sigma^2 x, sigma^2 y, sigma^2 a] - measurment errors
+    Q_diag - [nx, ny, na, nv, nw] - noises for predicion
+    dt [seconds] - rate of filter, typically 1/fps
+    mahalanobis_thres - mahalanobis disnace at which count ants the same
+    P_limit - limitation for covariance, if it is higher - remove that filter
+    '''
+    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit = np.inf):
         
         self.mahalanobis_thres = mahalanobis_thres
         
         self.R_diag = R_diag
         self.Q_diag = Q_diag
         self.dt = dt
+        self.P_limit = P_limit
         
         self.EKFS = []
         for i in range(start_values.shape[0]):
@@ -131,10 +140,11 @@ class multiEKF(object):
         # 2. calc correspondence
         old_values = self.get_all_ants_data_as_array()
         
-        #inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
-        #correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
-        inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
-        correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
+        inv_covs = np.array([np.linalg.inv(ekf.P[:3,:3]) for ekf in self.EKFS])
+        correspondence_matrix = multi_mahalanobis(new_values[:,1:4], old_values[:,:3], inv_covs)
+        
+        #inv_covs = np.array([np.linalg.inv(ekf.P[:2,:2]) for ekf in self.EKFS])
+        #correspondence_matrix = multi_mahalanobis(new_values[:,1:3], old_values[:,:2], inv_covs)
         
         # store indexes of all ants, and then delete those which is taken for update, the rest will be new ants
         new_objects = list(range(new_values.shape[0]))
@@ -167,6 +177,16 @@ class multiEKF(object):
             self.EKFS.append(ekf)
                 
         # 5. forget bad filters (long no update, huge covs, etc.) 
+        
+        ## huge cov
+        if self.P_limit != np.inf:
+            filters_to_remove = []
+            for i, ekf in enumerate(self.EKFS):
+                if np.any(ekf.P > self.P_limit):
+                    filters_to_remove.append(i)                
+            for index in sorted(filters_to_remove, reverse=True):
+                del self.EKFS[index]
+                
         
     def get_all_ants_data_as_array(self):
         ants = []
