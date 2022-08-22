@@ -3,16 +3,28 @@ import argparse
 from RCNN_overlay_test import read_yaml
 import matplotlib.pyplot as plt
 import numpy as np
+from ekf import multiEKF
 
 ARROW_LEN = 50
 D_ANT_COLOR = 'k'
 D_ANT_SYM = 'o'
 ANT_SCORE_MIN = 0.0
+MEKF = None
+R_diag = np.array([10, 10, 10])
+Q_diag = np.array([10, 10, 10, 30, 30])
+dt = 0.1
+mh = 15
 
 def proceed_frame(frame, H, ax):
-    ants = get_ants(frame)
-    
+    global MEKF
+    ants = get_ants(frame)    
     plot_ants(ax, ants, H)
+    
+    if MEKF is None:
+        MEKF = multiEKF(ants, R_diag,  Q_diag, dt, mh)
+    else:
+        MEKF.proceed(ants)
+    MEKF.draw_tracks(H, ax, 'r')
 
 def get_ants(frame):
     ants = []
@@ -27,11 +39,14 @@ def get_ants(frame):
             ants.append(ant)
     return np.array(ants)
 
-def plot_ants(ax, ants, H):            
+'''
+ants - [[p, x, y, a]]
+'''
+def plot_ants(ax, ants, H, color = D_ANT_COLOR):            
     ants = get_ants(frame)                                
     for i in range(ants.shape[0]):
-        ax.plot(ants[i,1], H-ants[i,2], D_ANT_COLOR+D_ANT_SYM, alpha = ants[i,0])
-        ax.arrow(ants[i,1], H-ants[i,2], ARROW_LEN * np.cos(ants[i,3]), ARROW_LEN * np.sin(ants[i,4]), color = D_ANT_COLOR, alpha = ants[i,0])
+        ax.plot(ants[i,1], H-ants[i,2], color+D_ANT_SYM, alpha = ants[i,0])
+        ax.arrow(ants[i,1], H-ants[i,2], ARROW_LEN * np.cos(ants[i,3]), ARROW_LEN * np.sin(ants[i,3]), color = color, alpha = ants[i,0])
             
         
 
@@ -42,14 +57,16 @@ if __name__ == '__main__':
     print(f"Loading data from {args.yaml_path}...")
     ANT_DATA = read_yaml(args.yaml_path)    
     #print(d.keys() for d in ANT_DATA['frames'])
+    dt = 1/ANT_DATA['FPS']
             
-    fig, ax = plt.subplots()    
-    
+    fig, ax = plt.subplots()  
     for frame in ANT_DATA['frames']:
+          
         ax.clear()
         ax.set_title(f"Frame {list(frame.keys())[0]}")
         ax.set_xlim(0, ANT_DATA['weight'])
         ax.set_ylim(0, ANT_DATA['height'])
         proceed_frame(frame, ANT_DATA['height'], ax)
         plt.pause(0.1)
+        #plt.show()
     
