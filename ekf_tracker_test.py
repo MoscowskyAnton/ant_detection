@@ -18,28 +18,28 @@ dt = 0.1
 mh = 15
 P_limit = 1000
 
-def proceed_frame(frame, H, ax):
+def proceed_frame(frame, W, H, ax):
     global MEKF
     ants = get_ants(frame)    
     plot_ants(ax, ants, H)
     
     if MEKF is None:
-        MEKF = multiEKF(ants, R_diag,  Q_diag, dt, mh, P_limit)
+        MEKF = multiEKF(ants, R_diag,  Q_diag, dt, mh, P_limit, W, H)
     else:
         MEKF.proceed(ants)
     MEKF.draw_tracks(H, ax, 'r')
 
 def get_ants(frame):
     ants = []
-    for k, v in frame.items():
-        for kp, score in zip(v['keypoints'], v['bboxes_scores']):
-            if score < ANT_SCORE_MIN:
-                continue
-            cx = (kp[0][0] + kp[1][0])/2
-            cy = (kp[0][1] + kp[1][1])/2            
-            a = np.arctan2(kp[1][1]-kp[0][1], kp[1][0]-kp[0][0])
-            ant = [score, cx, cy, a, 0, 0]
-            ants.append(ant)
+    
+    for kp, score in zip(frame['keypoints'], frame['bboxes_scores']):
+        if score < ANT_SCORE_MIN:
+            continue
+        cx = (kp[0][0] + kp[1][0])/2
+        cy = (kp[0][1] + kp[1][1])/2            
+        a = np.arctan2(kp[0][1]-kp[1][1], kp[0][0]-kp[1][0])
+        ant = [score, cx, cy, a, 0, 0]
+        ants.append(ant)
     return np.array(ants)
 
 '''
@@ -55,8 +55,8 @@ def plot_ants(ax, ants, H, color = D_ANT_COLOR):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--yaml_path', nargs='?', default='//home/anton/Projects/ant_detection/videos/short.yml', help="Full path to yaml-file with ant data", type=str)
-    parser.add_argument('--video_path', nargs='?', default='//home/anton/Projects/ant_detection/videos/short.mp4', help="Full path to video file", type=str)
+    parser.add_argument('--yaml_path', nargs='?', default='//home/anton/Projects/ant_detection/videos/cut50s.yml', help="Full path to yaml-file with ant data", type=str)
+    parser.add_argument('--video_path', nargs='?', default='//home/anton/Projects/ant_detection/videos/cut50s.mp4', help="Full path to video file", type=str)
     args = parser.parse_args()
     print(f"Loading data from {args.yaml_path}...")
     ANT_DATA = read_yaml(args.yaml_path)    
@@ -75,9 +75,9 @@ if __name__ == '__main__':
         ax.imshow(frame_v)
         
         ax.set_title(f"Frame {list(frame.keys())[0]}")
-        ax.set_xlim(0, ANT_DATA['weight'])
-        ax.set_ylim(0, ANT_DATA['height'])
-        proceed_frame(frame, ANT_DATA['height'], ax)
+        plt.xlim(0, ANT_DATA['weight'])
+        plt.ylim(0, ANT_DATA['height'])
+        proceed_frame(frame, ANT_DATA['weight'], ANT_DATA['height'], ax)
         
         plt.pause(0.1)
         #plt.show()

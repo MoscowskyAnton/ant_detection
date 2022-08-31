@@ -114,7 +114,7 @@ class multiEKF(object):
     mahalanobis_thres - mahalanobis disnace at which count ants the same
     P_limit - limitation for covariance, if it is higher - remove that filter
     '''
-    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit = np.inf):
+    def __init__(self, start_values, R_diag, Q_diag, dt, mahalanobis_thres, P_limit, xlim, ylim):
         
         self.mahalanobis_thres = mahalanobis_thres
         
@@ -122,6 +122,8 @@ class multiEKF(object):
         self.Q_diag = Q_diag
         self.dt = dt
         self.P_limit = P_limit
+        self.xlim = xlim
+        self.ylim = ylim
         
         self.EKFS = []
         for i in range(start_values.shape[0]):
@@ -202,7 +204,7 @@ class multiEKF(object):
             #print(track[:,0], track[:,1])
             ax.plot(track[:,0], H-track[:,1], color = color)                            
             # plot end
-            plot_covariance_ellipse((ekf.x[0], H-ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor='g', alpha=0.8)
+            plot_covariance_ellipse((ekf.x[0], H-ekf.x[1]), ekf.P[0:2, 0:2], std=self.mahalanobis_thres, facecolor='g', alpha=0.8, xlim=self.xlim, ylim=self.ylim)
 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import mahalanobis
